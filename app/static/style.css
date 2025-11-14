@@ -1,0 +1,101 @@
+/* ========== Base / Layout ========== */
+:root{
+  --bg:#f4f6f9;
+  --card:#fff;
+  --text:#1f2937;
+  --muted:#6b7280;
+  --border:#e5e7eb;
+  --primary:#007bff;
+  --primary-d:#005ec9;
+  --danger:#b30000;
+  --warn:#d87d00;
+}
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{ margin:0; background:var(--bg); color:var(--text); font-family:system-ui, Segoe UI, Arial, sans-serif; }
+.wrap{ width:min(1100px,92%); margin:0 auto; }
+
+/* Top bar + footer (працює з твоїм base.html) */
+header{ background:#fff; border-bottom:1px solid var(--border); }
+header .wrap{ display:flex; align-items:center; justify-content:space-between; padding:12px 0; }
+header h1{ margin:0; font-size:1.1rem; }
+nav a{ color:var(--text); text-decoration:none; margin-left:14px; }
+nav a:hover{ text-decoration:underline; }
+footer{ margin-top:24px; padding:16px 0; color:var(--muted); text-align:left; }
+
+/* Карточки / секції */
+.card{ background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px;
+       box-shadow:0 4px 18px rgba(2,7,28,0.06); }
+.card-auth{ max-width:380px; margin:40px auto; }
+.card-title{ margin:0 0 10px; }
+
+/* Кнопки та інпути (універсально для всіх форм) */
+button,.btn{
+  display:inline-block; padding:8px 14px; border-radius:8px; border:0; cursor:pointer;
+  background:var(--primary); color:#fff; text-decoration:none;
+}
+button:hover,.btn:hover{ background:var(--primary-d); }
+.btn-small{ padding:6px 10px; font-size:.9rem; }
+.btn-ghost{ background:#fff; color:var(--text); border:1px solid var(--border); }
+label{ font-size:.9rem; color:#374151; display:block; margin:6px 0 4px; }
+input{
+  width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:#f9fbff; outline:none;
+}
+input:focus{ border-color:var(--primary); box-shadow:0 0 0 3px rgba(0,123,255,.15); }
+
+/* ========== Flash messages (сумісно з твоїм base.html) ========== */
+.flashes{ margin:14px 0; }
+.alert{ padding:10px 12px; border-radius:8px; margin:8px 0; border:1px solid var(--border); background:#f8fafc; }
+.alert-success{ background:#ecfdf5; border-color:#bbf7d0; }
+.alert-danger { background:#fef2f2; border-color:#fecaca; }
+.alert-warning{ background:#fefce8; border-color:#fde68a; }
+.alert-info   { background:#eff6ff; border-color:#bfdbfe; }
+
+/* ========== Login / Register (твій стиль злегка полірував) ========== */
+.auth-section{ width:90%; max-width:400px; margin:50px auto; padding:20px 25px; background:#fafafa;
+               border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+.auth-section h2{ text-align:center; margin-bottom:18px; }
+.auth-form{ display:flex; flex-direction:column; gap:12px; }
+.alt-link{ text-align:center; margin-top:12px; }
+.alt-link a{ color:var(--primary); text-decoration:none; }
+.alt-link a:hover{ text-decoration:underline; }
+
+/* ========== Scan list (твій блок — збережено, прибрав дублікати) ========== */
+.scan-section{ width:90%; max-width:900px; margin:20px auto; }
+.scan-form{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:10px; }
+.scan-form input{ flex:1; }
+.table-wrapper{ overflow-x:auto; }
+
+.scan-table{ width:100%; border-collapse:collapse; font-size:.95rem; }
+.scan-table th,.scan-table td{ padding:8px 10px; border-bottom:1px solid #e2e2e2; text-align:center; }
+.scan-table th{ background:#f5f5f5; }
+
+.crit{ color:var(--danger); font-weight:bold; }
+.high{ color:var(--warn); }
+.med { color:#c8a600; }
+.low { color:#777; }
+
+.btn-details{ text-decoration:none; color:var(--primary); font-size:.9rem; }
+.btn-details:hover{ text-decoration:underline; }
+.empty-msg{ color:#888; text-align:center; margin-top:15px; }
+
+/* ========== Scan result (твій стиль — без дублікатів) ========== */
+.scan-result{ width:95%; max-width:1100px; margin:20px auto; }
+.scan-result .image-name{ color:var(--primary); font-weight:bold; }
+.date{ color:#666; font-size:.9rem; }
+
+.summary-cards{ display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 20px; }
+.summary-cards .card{ flex:1; min-width:120px; text-align:center; padding:12px; border-radius:10px;
+                      color:#fff; font-weight:bold; font-size:.9rem; }
+.summary-cards .card span{ display:block; font-size:1.4rem; margin-top:4px; }
+.card.crit{ background:#b30000; } .card.high{ background:#d87d00; }
+.card.med{ background:#c8a600; } .card.low{ background:#6d6d6d; } .card.total{ background:var(--primary); }
+
+.scan-table td.desc{ text-align:left; max-width:420px; word-wrap:break-word; }
+.scan-table td.critical{ color:#b30000; font-weight:bold; }
+.scan-table td.high{ color:#d87d00; } .scan-table td.medium{ color:#c8a600; }
+.scan-table td.low{ color:#6d6d6d; }
+
+.back-btn{ margin-top:18px; text-align:center; }
+.back-btn a{ text-decoration:none; color:var(--primary); font-weight:bold; }
+.back-btn a:hover{ text-decoration:underline; }

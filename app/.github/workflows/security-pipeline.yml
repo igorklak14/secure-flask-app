@@ -1,0 +1,52 @@
+name: Security Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install Trivy
+      uses: aquasecurity/trivy-action@master
+
+    - name: Install Syft
+      uses: anchore/syft-action@v1
+
+    - name: Install Grype
+      uses: anchore/grype-action@v1
+
+    - name: Build Docker image
+      run: docker build -t secure-app .
+
+    - name: Trivy Image Scan
+      run: trivy image --format json -o trivy-image.json secure-app
+
+    - name: Trivy Config
+      run: trivy config --format json -o trivy-config.json .
+
+    - name: Trivy FS (dependencies + secrets)
+      run: trivy fs --scanners vuln,secret --format json -o trivy-fs.json .
+
+    - name: Generate SBOM
+      run: syft . -o cyclonedx-json > sbom.json
+
+    - name: Grype scan SBOM
+      run: grype sbom:sbom.json -o json > grype.json
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-results
+        path: |
+          trivy-image.json
+          trivy-config.json
+          trivy-fs.json
+          sbom.json
+          grype.json

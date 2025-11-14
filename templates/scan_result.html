@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Результат сканування</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color:#f4f4f4;
+           display:flex; justify-content:center; align-items:flex-start;
+           min-height:100vh; margin:0; padding:40px 0; }
+    .container { background:#fff; padding:30px; border-radius:8px;
+                 box-shadow:0 2px 10px rgba(0,0,0,0.1);
+                 width:min(1000px, 94%); }
+    h1,h2,h3 { color:#333; margin:0 0 18px; }
+    .small-muted { color:#666; font-size:14px; margin-bottom:16px; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 16px; }
+    .btn { display:inline-block; padding:9px 12px; background:#007bff; color:#fff;
+           text-decoration:none; border-radius:6px; font-size:14px; }
+    .btn:hover { background:#005ec9; }
+    .btn-outline { background:#fff; color:#007bff; border:1px solid #cfe2ff; }
+    .btn-outline:hover { background:#e9f2ff; }
+
+    .cards { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+    .card-kpi { flex:1 1 120px; text-align:center; border:1px solid #eee; border-radius:10px; padding:12px; }
+    .kpi-title { color:#555; font-weight:bold; }
+    .kpi-val { font-size:22px; font-weight:bold; margin-top:4px; }
+    .crit { background:#ffe0e0; } .high { background:#fff0c2; } .med { background:#f4f4f4; }
+    .low { background:#f7f7f7; } .total { background:#e6f0ff; }
+
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { border:1px solid #e5e5e5; padding:8px 10px; text-align:center; }
+    thead th { background:#f7f7f7; }
+    td.desc { text-align:left; max-width:520px; word-wrap:break-word; }
+
+    .toolbar { display:flex; gap:10px; align-items:center; margin:6px 0 10px; }
+    select { padding:6px 8px; border:1px solid #ddd; border-radius:6px; }
+
+    .top-links { font-size:14px; margin-bottom:12px; }
+    .top-links a { color:#007bff; text-decoration:none; }
+    .top-links a:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    {% if not export %}
+    <div class="top-links">
+      <a href="{{ url_for('sec.scan') }}">← До списку результатів</a> •
+      <a href="{{ url_for('auth.logout') }}">Вийти</a>
+    </div>
+    {% endif %}
+
+    <h1>Результат сканування</h1>
+    <div class="small-muted">Образ: <strong>{{ scan.image }}</strong> • Дата: {{ scan.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</div>
+
+    <div class="actions">
+      {% if prev_id %}
+        <a class="btn" href="{{ url_for('sec.scan_diff', scan_id=scan.id) }}">Порівняти з попереднім</a>
+      {% endif %}
+      <a class="btn-outline btn" href="{{ url_for('sec.scan_download_json', scan_id=scan.id) }}">Завантажити JSON</a>
+      <a class="btn-outline btn" href="{{ url_for('sec.scan_download_html', scan_id=scan.id) }}">Експорт у HTML</a>
+    </div>
+
+    <div class="cards">
+      <div class="card-kpi crit"><div class="kpi-title">Critical</div><div class="kpi-val">{{ summary.critical }}</div></div>
+      <div class="card-kpi high"><div class="kpi-title">High</div><div class="kpi-val">{{ summary.high }}</div></div>
+      <div class="card-kpi med"><div class="kpi-title">Medium</div><div class="kpi-val">{{ summary.medium }}</div></div>
+      <div class="card-kpi low"><div class="kpi-title">Low</div><div class="kpi-val">{{ summary.low }}</div></div>
+      <div class="card-kpi total"><div class="kpi-title">Total</div><div class="kpi-val">{{ summary.total }}</div></div>
+    </div>
+<form method="post" action="{{ url_for('sec.sbom_create', scan_id=scan.id) }}" style="display:inline">
+  <button class="btn" style="margin-left:8px">Згенерувати SBOM (Syft)</button>
+</form>
+
+{% if scan.sboms %}
+  <span style="margin-left:8px">SBOM:
+    {% for s in scan.sboms %}
+      <a href="{{ url_for('sec.sbom_download', sbom_id=s.id) }}">JSON</a>
+      {% if s.format.startswith('cyclonedx') %}
+        • <a href="{{ url_for('sec.sbom_grype', sbom_id=s.id) }}">Перевірити Grype</a>
+      {% endif %}
+      {% if not loop.last %}, {% endif %}
+    {% endfor %}
+  </span>
+{% endif %}
+
+    <div class="toolbar">
+      <label for="sevFilter">Фільтр за Severity:</label>
+      <select id="sevFilter">
+        <option value="ALL">All</option>
+        <option value="CRITICAL">Critical</option>
+        <option value="HIGH">High</option>
+        <option value="MEDIUM">Medium</option>
+        <option value="LOW">Low</option>
+        <option value="UNKNOWN">Unknown</option>
+      </select>
+    </div>
+
+    {% if rows %}
+      <div class="table-wrap">
+        <table id="vulnTable">
+          <thead>
+            <tr>
+              <th>CVE</th><th>Пакет</th><th>Severity</th><th>Installed</th><th>Fixed In</th><th>Опис</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr data-sev="{{ row.severity|upper }}">
+              <td><a href="{{ row.cve_link }}" target="_blank" style="color:#007bff; text-decoration:none;">{{ row.cve_id }}</a></td>
+              <td>{{ row.pkg_name }}</td>
+              <td>{{ row.severity }}</td>
+              <td>{{ row.installed_version }}</td>
+              <td>{{ row.fixed_version or '-' }}</td>
+              <td class="desc">{{ row.title or row.description }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="small-muted">Вразливостей не знайдено. Образ безпечний ✅</div>
+    {% endif %}
+  </div>
+
+  <script>
+    (function() {
+      const sel = document.getElementById('sevFilter');
+      const rows = document.querySelectorAll('#vulnTable tbody tr');
+      if (!sel || !rows.length) return;
+      function apply() {
+        const v = sel.value;
+        rows.forEach(tr => {
+          const sev = (tr.getAttribute('data-sev') || '').toUpperCase();
+          tr.style.display = (v === 'ALL' || sev === v) ? '' : 'none';
+        });
+      }
+      sel.addEventListener('change', apply);
+    })();
+  </script>
+</body>
+</html>

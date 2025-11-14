@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head><meta charset="UTF-8"><title>Grype по SBOM</title></head>
+<body>
+  <div>
+    <a href="{{ url_for('sec.scan_result', scan_id=sbom.scan_id) }}">← Назад до скану</a>
+  </div>
+  <h2>Grype по SBOM ({{ sbom.format }})</h2>
+  <p><strong>Інструмент:</strong> {{ sbom.tool }} | <strong>Створено:</strong> {{ sbom.created_at }}</p>
+
+  <h3>Підсумок</h3>
+  <ul>
+    <li>Всього: {{ summary.total }}</li>
+    <li>Critical: {{ summary.Critical }}</li>
+    <li>High: {{ summary.High }}</li>
+    <li>Medium: {{ summary.Medium }}</li>
+    <li>Low: {{ summary.Low }}</li>
+    <li>Negligible: {{ summary.Negligible }}</li>
+    <li>Unknown: {{ summary.Unknown }}</li>
+  </ul>
+
+  <details>
+    <summary>Показати сирий JSON Grype</summary>
+    <pre style="white-space: pre-wrap;">{{ raw }}</pre>
+  </details>
+</body>
+</html>

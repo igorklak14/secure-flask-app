@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <title>Скан конфігів та коду</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f4f6f9; margin:0; }
+    .wrap { max-width: 980px; margin: 24px auto; background:#fff; padding:24px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+    h1 { margin:0 0 10px; }
+    .muted { color:#666; margin-bottom:14px; }
+    form { display:flex; gap:18px; align-items:flex-end; flex-wrap:wrap; margin-bottom:18px; }
+    label { display:inline-flex; gap:8px; align-items:center; }
+    input[type="text"] { padding:8px 10px; border:1px solid #ddd; border-radius:6px; min-width:260px; }
+    button { padding:10px 16px; background:#0d6efd; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+    button:hover { background:#0b5ed7; }
+    .btn-outline { background:#fff; color:#0d6efd; border:1px solid #cfe2ff; border-radius:6px; padding:8px 12px; text-decoration:none; }
+    .btn-outline:hover { background:#e9f2ff; }
+
+    table { width:100%; border-collapse:collapse; margin-top:10px; }
+    th,td { padding:8px 10px; border-bottom:1px solid #eee; text-align:left; }
+    thead th { background:#f7f7f7; }
+    .pill { border-radius:999px; padding:2px 10px; font-size:12px; }
+    .crit { background:#ffd7d7; color:#8a1010; }
+    .hi   { background:#ffe6c5; color:#8a5d00; }
+    .med  { background:#fff4c2; color:#795f00; }
+    .low  { background:#e9ecef; color:#495057; }
+    .alert { background:#ffe3e3; border:1px solid #ffb3b3; padding:10px; border-radius:6px; color:#842029; margin-bottom:12px; }
+    .toolbar { display:flex; gap:10px; align-items:center; margin:12px 0 0; }
+    .section { margin-top:18px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    {% if not export %}
+      <div><a href="{{ url_for('main.dashboard') }}">На дашборд</a></div>
+    {% endif %}
+
+    <h1>Скан конфігів та коду</h1>
+    <div class="muted">Trivy без Docker: Dockerfile (misconfig), секрети в коді, вразливості в залежностях.</div>
+
+    {% if error %}
+      <div class="alert">Помилка: {{ error }}</div>
+    {% endif %}
+
+    <form method="post">
+      <div>
+        <label>Шлях:<br>
+          <input type="text" name="path" value="{{ path or '.' }}" placeholder=". / app / src ...">
+        </label>
+      </div>
+      <label><input type="checkbox" name="do_conf" {% if request.form.get('do_conf') or not request.method %}checked{% endif %}> Dockerfile / конфіги</label>
+      <label><input type="checkbox" name="do_secrets" {% if request.form.get('do_secrets') %}checked{% endif %}> Секрети в коді</label>
+      <label><input type="checkbox" name="do_deps" {% if request.form.get('do_deps') %}checked{% endif %}> Вразливості в залежностях</label>
+      <div><button type="submit">Сканувати</button></div>
+    </form>
+
+    {% if ran %}
+      <div class="toolbar">
+        {% if json_url %}<a class="btn-outline" href="{{ json_url }}">Експорт JSON</a>{% endif %}
+        {% if html_url %}<a class="btn-outline" href="{{ html_url }}">Експорт HTML</a>{% endif %}
+        <span class="muted">Шлях: <strong>{{ path }}</strong></span>
+      </div>
+    {% endif %}
+
+    {% if misconfigs and misconfigs|length %}
+      <div class="section">
+        <h3>Misconfig (Dockerfile / конфіги): {{ misconfigs|length }}</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Файл</th>
+              <th>Rule</th>
+              <th>Severity</th>
+              <th>Заголовок</th>
+              <th>Опис</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in misconfigs %}
+              <tr>
+                <td>{{ m.file }}</td>
+                <td>
+                  {# якщо Trivy дав пряму URL — користуємось нею #}
+                  {% if m.help %}
+                    <a href="{{ m.help }}" target="_blank" rel="noopener">{{ m.rule_id }}</a>
+                  {% else %}
+                    {# фолбек: для Dockerfile правил DSxxx ведемо на AVD #}
+                    {% if m.rule_id and m.rule_id.startswith('DS') %}
+                      {% set help_url = 'https://avd.aquasec.com/misconfig/dockerfile/' + m.rule_id %}
+                      <a href="{{ help_url }}" target="_blank" rel="noopener">{{ m.rule_id }}</a>
+                    {% else %}
+                      {{ m.rule_id }}
+                    {% endif %}
+                  {% endif %}
+                </td>
+                <td>
+                  {% set sev = (m.severity or '').upper() %}
+                  <span class="pill {% if sev=='CRITICAL' %}crit{% elif sev=='HIGH' %}hi{% elif sev=='MEDIUM' %}med{% else %}low{% endif %}">
+                    {{ sev }}
+                  </span>
+                </td>
+                <td>{{ m.title }}</td>
+                <td>{{ m.desc }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+
+    {% if secrets and secrets|length %}
+      <div class="section">
+        <h3>Secrets: {{ secrets|length }}</h3>
+        <table>
+          <thead><tr><th>Файл</th><th>Тип</th><th>Збіг</th></tr></thead>
+          <tbody>
+            {% for s in secrets %}
+              <tr>
+                <td>{{ s.file }}</td>
+                <td>{{ s.type }}</td>
+                <td>{{ s.match }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+
+    {% if deps_summary %}
+      <div class="section">
+        <h3>Вразливості в залежностях</h3>
+        <table>
+          <thead><tr><th>Critical</th><th>High</th><th>Medium</th><th>Low</th><th>Всього</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>{{ deps_summary.critical }}</td>
+              <td>{{ deps_summary.high }}</td>
+              <td>{{ deps_summary.medium }}</td>
+              <td>{{ deps_summary.low }}</td>
+              <td>{{ deps_summary.total }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>

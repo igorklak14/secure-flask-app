@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Користувачі (адмін){% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 980px;">
+  <h1>Користувачі</h1>
+
+  <form method="get" class="mb-3" style="display:flex;gap:8px;align-items:center;">
+    <input type="text" name="q" value="{{ q or '' }}" placeholder="Пошук за username"
+           class="form-control" style="max-width: 280px;">
+    <button class="btn btn-outline-primary" type="submit">Шукати</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin.users_list') }}">Скинути</a>
+  </form>
+
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th style="width: 60px;">ID</th>
+        <th>Username</th>
+        <th style="width: 160px;">Роль</th>
+        <th style="width: 220px;">Дія</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.username }}</td>
+        <td>
+          <span class="badge {% if u.role == 'admin' %}bg-danger{% else %}bg-secondary{% endif %}">
+            {{ u.role }}
+          </span>
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('admin.set_role', user_id=u.id) }}"
+                style="display:flex;gap:8px;align-items:center;">
+            <select name="role" class="form-select" style="max-width: 140px;">
+              <option value="user"  {% if u.role=='user' %}selected{% endif %}>user</option>
+              <option value="admin" {% if u.role=='admin' %}selected{% endif %}>admin</option>
+            </select>
+            <button class="btn btn-primary btn-sm" type="submit">Змінити</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="text-muted">Користувачів не знайдено.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

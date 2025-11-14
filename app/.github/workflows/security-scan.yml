@@ -1,0 +1,98 @@
+name: Security Scan (Trivy)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write   # для SARIF у Code Scanning
+  actions: read
+
+concurrency:
+  group: sec-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  trivy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      run: |
+        docker build -t secure-flask-app:ci .
+
+    # ---- IMAGE SCAN (SARIF -> Code scanning) ----
+    - name: Trivy image scan (SARIF)
+      uses: aquasecurity/trivy-action@0.24.0
+      with:
+        scan-type: image
+        image-ref: secure-flask-app:ci
+        format: sarif
+        output: trivy-image.sarif
+        vuln-type: "os,library"
+        ignore-unfixed: true
+        severity: "CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN"
+
+    - name: Upload SARIF to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: trivy-image.sarif
+
+    # ---- IMAGE SCAN (JSON -> артефакт + fail logic) ----
+    - name: Install jq (for JSON parsing)
+      run: sudo apt-get update && sudo apt-get install -y jq
+
+    - name: Trivy image scan (JSON)
+      run: |
+        trivy image --format json \
+          --ignore-unfixed \
+          --vuln-type os,library \
+          --timeout 2m \
+          secure-flask-app:ci > trivy-image.json
+
+    - name: Fail if CRITICAL found
+      run: |
+        crit=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' trivy-image.json)
+        echo "Found CRITICAL: $crit"
+        if [ "$crit" -gt 0 ]; then
+          echo "❌ CRITICAL vulnerabilities detected: $crit"
+          exit 1
+        fi
+        echo "✅ No CRITICAL vulnerabilities"
+
+    # ---- OPTIONAL: FS scan (репозиторій як є) ----
+    - name: Trivy fs scan (SARIF)
+      if: always()
+      uses: aquasecurity/trivy-action@0.24.0
+      with:
+        scan-type: fs
+        scan-ref: .
+        format: sarif
+        output: trivy-fs.sarif
+        ignore-unfixed: true
+        severity: "CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN"
+
+    - name: Upload FS SARIF
+      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: trivy-fs.sarif
+
+    # ---- artifacts ----
+    - name: Upload reports as artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: trivy-reports
+        path: |
+          trivy-image.json
+          trivy-image.sarif
+          trivy-fs.sarif

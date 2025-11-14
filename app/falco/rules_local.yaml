@@ -1,0 +1,6 @@
+- rule: Sensitive Mount
+  desc: Detect mounting sensitive paths inside a container
+  condition: (evt.type=mount and container and (fd.name startswith "/var/run/docker.sock" or fd.name startswith "/var/lib/kubelet"))
+  output: "Sensitive mount detected (user=%user.name container=%container.id path=%fd.name)"
+  priority: WARNING
+  tags: [container, filesystem]

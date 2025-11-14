@@ -1,0 +1,21 @@
+spec:
+  template:
+    spec:
+      serviceAccountName: secure-app
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+      - name: web
+        image: your-registry/secure-flask-app:latest
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+        env:
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: secure-app-secrets
+              key: secret_key

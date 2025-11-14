@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Сканування</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4;
+           display:flex; justify-content:center; align-items:flex-start;
+           min-height:100vh; margin:0; padding:40px 0; }
+    .container { background:#fff; padding:30px; border-radius:8px;
+                 box-shadow:0 2px 10px rgba(0,0,0,0.1);
+                 width: min(900px, 92%); }
+    h1,h2,h3 { color:#333; margin:0 0 18px; }
+    .small-muted { color:#666; font-size:14px; margin-bottom:16px; }
+
+    .flash-messages { margin-bottom: 15px; }
+    .flash-messages div { padding: 8px 15px; margin-bottom: 8px; border-radius: 4px; font-weight: bold; }
+    .flash-messages .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .flash-messages .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    .flash-messages .danger  { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .flash-messages .info    { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+    .form-row { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:6px; }
+    label { display:block; margin-bottom:6px; color:#555; }
+    input[type="text"] { flex:1 1 320px; padding:10px; border:1px solid #ddd; border-radius:4px;
+                         box-sizing:border-box; }
+    .opts { display:flex; flex-wrap:wrap; gap:14px; margin:8px 0 16px; }
+    .opts label { display:inline-flex; align-items:center; gap:6px; margin:0; }
+
+    button { padding:10px 14px; background:#007bff; color:#fff; border:none; border-radius:4px;
+             cursor:pointer; font-size:16px; }
+    button:hover { background:#0056b3; }
+
+    hr { border:0; border-top:1px solid #eee; margin:18px 0; }
+
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { border:1px solid #e5e5e5; padding:8px 10px; text-align:center; }
+    thead th { background:#f7f7f7; }
+    .badge { display:inline-block; min-width:28px; padding:2px 8px; border-radius:999px; background:#eef2ff; }
+    .badge.danger { background:#ffe0e0; color:#8a1010; }
+    .badge.warn   { background:#fff0c2; color:#8a5d00; }
+    .badge.muted  { background:#f1f1f1; color:#666; }
+
+    .empty { color:#555; font-style:italic; margin:10px 0 0; }
+    .top-links { font-size:14px; margin-bottom:12px; }
+    .top-links a { color:#007bff; text-decoration:none; }
+    .top-links a:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-links">
+      <a href="{{ url_for('main.dashboard') }}">На дашборд</a> •
+      <a href="{{ url_for('auth.logout') }}">Вийти</a>
+    </div>
+
+    <h1>Сканування контейнерного образу</h1>
+    <p class="small-muted">Введи <strong>image:tag</strong> та натисни “Сканувати”.</p>
+
+    <div class="flash-messages">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="{{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+    </div>
+
+    <form method="post">
+      <div class="form-row">
+        <div style="flex:1 1 360px;">
+          <label for="image">Ім'я образу (image:tag):</label>
+          <input id="image" type="text" name="image" list="images" placeholder="secure-flask-app:latest">
+          <datalist id="images">
+            <option value="alpine:3.19">
+            <option value="ubuntu:22.04">
+            <option value="debian:12-slim">
+            <option value="python:3.12-slim">
+            <option value="node:20-alpine">
+            <option value="nginx:1.25-alpine">
+            <option value="redis:7-alpine">
+          </datalist>
+        </div>
+        <div>
+          <button type="submit">Сканувати</button>
+        </div>
+      </div>
+
+      <!-- опції Trivy -->
+      <div class="opts">
+        <label><input type="checkbox" name="ignore_unfixed" checked> Ігнорувати невиправлені (ignore-unfixed)</label>
+        <label><input type="checkbox" name="only_os"> Лише OS-пакети (OS packages only)</label>
+      </div>
+    </form>
+
+    <hr>
+
+    <h3>Останні результати</h3>
+
+    {% if scans %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Дата</th><th>Образ</th><th>Всього</th>
+              <th>Crit</th><th>High</th><th>Med</th><th>Low</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in scans %}
+            <tr>
+              <td>{{ s.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+              <td style="text-align:left">{{ s.image }}</td>
+              <td><span class="badge">{{ s.total }}</span></td>
+              <td><span class="badge danger">{{ s.critical }}</span></td>
+              <td><span class="badge warn">{{ s.high }}</span></td>
+              <td><span class="badge">{{ s.medium }}</span></td>
+              <td><span class="badge muted">{{ s.low }}</span></td>
+              <td>
+                <a href="{{ url_for('sec.scan_result', scan_id=s.id) }}" style="text-decoration:none; color:#007bff;">
+                  Деталі
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty">Поки немає жодного результату сканування.</p>
+    {% endif %}
+  </div>
+</body>
+</html>

@@ -1,0 +1,1 @@
+[![Security Scan (Trivy)](https://github.com/igorklak14/secure-flask-app/actions/workflows/main.yml/badge.svg)](https://github.com/igorklak14/secure-flask-app/actions/workflows/main.yml)

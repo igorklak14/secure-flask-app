@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+
+secrets/
+
+# IDE
+.vscode/
+.idea/
+
+# System
+.DS_Store
+
+# Logs
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Env files (ніколи не класти в Docker!)
+.env
+*.env
+
+# Database / instance data
+instance/*
+!instance/.keep   # якщо хочеш, щоб папка існувала
+
+# Docker cache
+.trivy/
+
+# Node (якщо додаси фронтенд)
+node_modules/

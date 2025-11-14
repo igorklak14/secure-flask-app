@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <h1 class="h4 mb-1">Dashboard</h1>
+      <div class="text-muted">Ласкаво просимо, <strong>{{ username }}</strong>!</div>
+
+      <div class="mt-3 d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="{{ url_for('sec.scan') }}">
+          Сканувати контейнер (Trivy)
+        </a>
+        <a class="btn btn-outline-primary" href="{{ url_for('sec.scan_config_page') }}">
+          Config &amp; Code
+        </a>
+        <a class="btn btn-outline-primary" href="{{ url_for('sec.scan_dockerfile') }}">
+          Dockerfile (окремо)
+        </a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('sec.scan_k8s') }}">
+          K8s маніфести (Kubescape)
+        </a>
+        {% if last_scan %}
+          <a class="btn btn-outline-secondary" href="{{ url_for('sec.scan_result', scan_id=last_scan.id) }}">
+            Відкрити останній скан
+          </a>
+          <a class="btn btn-outline-secondary" href="{{ url_for('sec.scan_download_json', scan_id=last_scan.id) }}">
+            Останній звіт (JSON)
+          </a>
+          <a class="btn btn-outline-secondary" href="{{ url_for('sec.export_scans_csv') }}">Експорт CSV
+          </a>
+        {% endif %}
+        <a class="btn btn-outline-danger ms-auto" href="{{ url_for('auth.logout') }}">Вийти</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Метрики -->
+  <div class="row g-3">
+    <div class="col-6 col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">Усього сканів</div>
+          <div class="fs-3 fw-semibold">{{ total_scans }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">Різних образів</div>
+          <div class="fs-3 fw-semibold">{{ distinct_images }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card h-100 border-danger-subtle">
+        <div class="card-body">
+          <div class="text-muted small">Critical (сумарно)</div>
+          <div class="fs-3 fw-semibold text-danger">{{ agg.critical }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card h-100 border-warning-subtle">
+        <div class="card-body">
+          <div class="text-muted small">High (сумарно)</div>
+          <div class="fs-3 fw-semibold text-warning">{{ agg.high }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">Medium (сумарно)</div>
+          <div class="fs-3 fw-semibold">{{ agg.medium }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">Low (сумарно)</div>
+          <div class="fs-3 fw-semibold">{{ agg.low }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">Вразливостей всього</div>
+          <div class="fs-3 fw-semibold">{{ agg.total }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">Останній образ</div>
+          <div class="fw-semibold">{{ last_scan.image if last_scan else '-' }}</div>
+          <div class="small text-muted">
+            {% if last_scan %}{{ last_scan.created_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% if current_user.is_authenticated and current_user.role == 'admin' %}
+  <a class="btn outline" href="{{ url_for('admin.users_list') }}">Керування користувачами</a>
+{% endif %}
+
+  <!-- Останні 5 сканів -->
+  <div class="card mt-4">
+    <div class="card-body">
+      <h3 class="h6 mb-3">Останні 5 сканів</h3>
+      {% if recent %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Дата</th>
+                <th>Образ</th>
+                <th class="text-center">Всього</th>
+                <th class="text-center">Crit</th>
+                <th class="text-center">High</th>
+                <th class="text-center">Med</th>
+                <th class="text-center">Low</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for s in recent %}
+                <tr>
+                  <td>{{ s.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+                  <td class="text-break">{{ s.image }}</td>
+                  <td class="text-center"><span class="badge text-bg-secondary">{{ s.total }}</span></td>
+                  <td class="text-center"><span class="badge text-bg-danger">{{ s.critical }}</span></td>
+                  <td class="text-center"><span class="badge text-bg-warning">{{ s.high }}</span></td>
+                  <td class="text-center"><span class="badge text-bg-light">{{ s.medium }}</span></td>
+                  <td class="text-center"><span class="badge text-bg-light">{{ s.low }}</span></td>
+                  <td class="text-end">
+                    <a class="link-primary" href="{{ url_for('sec.scan_result', scan_id=s.id) }}">Деталі</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">Сканів поки немає — виконай перше сканування.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

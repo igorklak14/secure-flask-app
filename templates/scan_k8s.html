@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head><meta charset="UTF-8"><title>Kubescape</title></head>
+<body>
+  <div><a href="{{ url_for('main.dashboard') }}">← На дашборд</a></div>
+  <h2>Kubescape: перевірка маніфестів</h2>
+
+  <form method="post">
+    <label>Шлях до каталогу з YAML: <input type="text" name="path" value="{{ path or '.' }}"></label>
+    <button type="submit">Сканувати</button>
+  </form>
+
+  {% if error %}<p style="color:#a00">Помилка: {{ error }}</p>{% endif %}
+
+  {% if ran and summary %}
+    <h3>Підсумок</h3>
+    <ul>
+      <li>Всього контролів: {{ summary.total }}</li>
+      <li>Пройшло: {{ summary.passed }}</li>
+      <li>Провалено: {{ summary.failed }}</li>
+    </ul>
+    <details>
+      <summary>Показати сирий JSON Kubescape</summary>
+      <pre style="white-space: pre-wrap">{{ raw }}</pre>
+    </details>
+  {% endif %}
+</body>
+</html>

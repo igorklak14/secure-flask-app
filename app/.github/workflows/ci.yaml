@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push: { branches: ["main"] }
+  pull_request:
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        run: docker build -t secure-flask-app:ci .
+
+      - name: Run Trivy (image)
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: secure-flask-app:ci
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+
+      - name: SBOM (Syft) as artifact
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b . v1.5.1
+          ./syft secure-flask-app:ci -o cyclonedx-json > sbom.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json

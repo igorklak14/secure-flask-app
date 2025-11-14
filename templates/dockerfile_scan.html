@@ -1,0 +1,155 @@
+<!-- templates/dockerfile_scan.html -->
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Скан Dockerfile</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:40px 0; display:flex; justify-content:center; }
+    .container { background:#fff; width:min(1000px, 92%); padding:24px 28px; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.08); }
+    h1 { margin:0 0 10px; }
+    .muted { color:#666; margin:0 0 16px; }
+    .top-links a { color:#007bff; text-decoration:none; margin-right:8px; }
+    .top-links a:hover { text-decoration:underline; }
+
+    form { display:flex; gap:10px; align-items:flex-end; margin:14px 0 18px; flex-wrap:wrap; }
+    label { font-size:.9rem; color:#555; display:block; margin-bottom:6px; }
+    input[type=text] { padding:10px; border:1px solid #ddd; border-radius:6px; min-width:320px; }
+    button { padding:10px 14px; border:none; background:#007bff; color:#fff; border-radius:6px; cursor:pointer; }
+    button:hover { background:#005ec9; }
+
+    .flash { padding:10px 12px; border-radius:8px; margin:10px 0; }
+    .flash.err { background:#ffe0e0; border:1px solid #e07a7a; color:#7a1818; }
+    .flash.ok  { background:#e9f6ff; border:1px solid #9fd0ff; color:#0b4a80; }
+
+    .summary { display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 18px; }
+    .chip { padding:8px 12px; border-radius:999px; font-weight:bold; color:#fff; }
+    .crit { background:#b30000; }
+    .high { background:#d87d00; }
+    .med  { background:#c8a600; }
+    .low  { background:#666; }
+    .tot  { background:#007bff; }
+
+    .toolbar { display:flex; gap:10px; align-items:center; margin: 4px 0 10px; }
+    select { padding:8px 10px; border:1px solid #ddd; border-radius:6px; }
+
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:0.95rem; }
+    th, td { padding:9px 10px; border-bottom:1px solid #e9ecef; text-align:left; }
+    thead th { background:#f7f9fc; }
+    td.sev { font-weight:bold; text-transform:capitalize; }
+    td.sev.CRITICAL { color:#b30000; }
+    td.sev.HIGH     { color:#d87d00; }
+    td.sev.MEDIUM   { color:#c8a600; }
+    td.sev.LOW      { color:#6d6d6d; }
+    .muted-sm { color:#777; font-size:.85rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-links">
+      <a href="{{ url_for('main.dashboard') }}">На дашборд</a> ·
+      <a href="{{ url_for('sec.scan') }}">Scan image</a>
+    </div>
+
+    <h1>Сканування Dockerfile</h1>
+    <p class="muted">Перевіряє інструкції у Dockerfile на типові помилки безпеки (Trivy config).</p>
+
+    <form method="post">
+      <div>
+        <label for="path">Шлях до Dockerfile</label>
+        <input id="path" name="path" type="text" value="{{ path or 'Dockerfile' }}" placeholder="Dockerfile або ./deploy/Dockerfile">
+      </div>
+      <div>
+        <button type="submit">Сканувати</button>
+      </div>
+    </form>
+
+    {% if ran and error %}
+      <div class="flash err">{{ error }}</div>
+    {% endif %}
+
+    {% if ran and not error %}
+      <div class="flash ok">Сканування завершено.</div>
+      {% if summary %}
+        <div class="summary">
+          <div class="chip tot">Всього: {{ summary.total }}</div>
+          <div class="chip crit">Critical: {{ summary.CRITICAL }}</div>
+          <div class="chip high">High: {{ summary.HIGH }}</div>
+          <div class="chip med">Medium: {{ summary.MEDIUM }}</div>
+          <div class="chip low">Low: {{ summary.LOW }}</div>
+        </div>
+      {% endif %}
+
+      <div class="toolbar">
+        <label for="sev">Фільтр за критичністю:</label>
+        <select id="sev" onchange="filterSeverity(this.value)">
+          <option value="ALL">All</option>
+          <option value="CRITICAL">Critical</option>
+          <option value="HIGH">High</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="LOW">Low</option>
+        </select>
+        <span class="muted-sm">Показано: <span id="shownCount"></span> із {{ rows|length }}</span>
+      </div>
+
+      <div class="table-wrap">
+        <table id="resultTable">
+          <thead>
+            <tr>
+              <th>Файл/рядки</th>
+              <th>ID</th>
+              <th>Заголовок</th>
+              <th>Критичність</th>
+              <th>Повідомлення</th>
+              <th>Джерело</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            <tr data-sev="{{ r.severity }}">
+              <td>
+                {{ r.file }}
+                {% if r.start_line %}<div class="muted-sm">рядки {{ r.start_line }}–{{ r.end_line }}</div>{% endif %}
+              </td>
+              <td>{{ r.id }}</td>
+              <td>{{ r.title }}</td>
+              <td class="sev {{ r.severity }}">{{ r.severity }}</td>
+              <td>{{ r.message }}</td>
+              <td>
+                {% if r.url %}
+                  <a href="{{ r.url }}" target="_blank" rel="noopener">link</a>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+
+  <script>
+    function filterSeverity(val) {
+      const rows = document.querySelectorAll('#resultTable tbody tr');
+      let shown = 0;
+      rows.forEach(tr => {
+        const s = tr.getAttribute('data-sev');
+        const ok = (val === 'ALL') || (s === val);
+        tr.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+      });
+      document.getElementById('shownCount').innerText = shown;
+    }
+    // ініціалізація лічильника, якщо вже є дані
+    (function initShown(){
+      const tbody = document.querySelector('#resultTable tbody');
+      if (tbody) {
+        document.getElementById('shownCount').innerText = tbody.querySelectorAll('tr').length;
+      }
+    })();
+  </script>
+</body>
+</html>
